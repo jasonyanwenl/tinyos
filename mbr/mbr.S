@@ -1,3 +1,4 @@
+%include "boot.inc"
 SECTION MBR vstart=0x7c00
     mov ax, cs
     mov ds, ax
@@ -5,6 +6,8 @@ SECTION MBR vstart=0x7c00
     mov ss, ax
     mov fs, ax
     mov sp, 0x7c00
+    mov ax, 0xb800
+    mov gs, ax
 
 ; Clear screen
     mov ax, 0x600
@@ -13,22 +16,86 @@ SECTION MBR vstart=0x7c00
     mov dx, 0x184f
     int 0x10
 
-; Get cursor location
-    mov ah, 3
-    mov bh, 0
-    int 0x10
+    mov byte [gs:0x00], '1'
+    mov byte [gs:0x01], 0xA4
 
-; Print string
-    mov ax, message
-    mov bp, ax
-    mov cx, 5
-    mov ax, 0x1301
-    mov bx, 0x2
-    int 0x10
+    mov byte [gs:0x02], ' '
+    mov byte [gs:0x03], 0xA4
 
-; While(1)
-    jmp $
+    mov byte [gs:0x04], 'M'
+    mov byte [gs:0x05], 0xA4
 
-    message db "1 MBR YWL"
-    times 510-($-$$) db 0
-    db 0x55, 0xaa
+    mov byte [gs:0x06], 'B'
+    mov byte [gs:0x07], 0xA4
+
+    mov byte [gs:0x08], 'R'
+    mov byte [gs:0x09], 0xA4
+
+    mov eax, LOADER_START_SECTOR
+    mov bx, LOADER_BASE_ADDR
+    mov cx, 4
+    call rd_disk_m_16
+
+    jmp LOADER_BASE_ADDR
+
+; func: read n sectors from disk
+rd_disk_m_16:
+
+    mov esi, eax
+    mov di, cx
+
+; step1: setup number of sectors to read
+    mov dx, 0x1f2
+    mov al, cl
+    out dx, al
+
+    mov eax, esi
+
+; step2: write LBA addr to 0x1f3 - 0x1f6
+    mov dx, 0x1f3
+    out dx, al
+
+    mov cl, 8
+    shr eax, cl
+    mov dx, 0x1f4
+    out dx, al
+
+    shr eax, cl
+    mov dx, 0x1f5
+    out dx, al
+
+    shr eax, cl
+    and al, 0x0f
+    or al, 0xe0
+    mov dx, 0x1f6
+    out dx, al
+
+; step3: write command to 0x1f7
+    mov dx, 0x1f7
+    mov al, 0x20
+    out dx, al
+
+; step4: check disk status
+.not_ready:
+    nop ; sleep
+    in al, dx
+    and al, 0x88
+    cmp al, 0x08
+    jnz .not_ready
+
+; step5: read from 0x1f0
+    mov ax, di
+    mov dx, 256
+    mul dx
+    mov cx, ax
+    mov dx, 0x1f0
+
+.go_on_read:
+    in ax, dx
+    mov [bx], ax
+    add bx, 2
+    loop .go_on_read
+    ret
+
+times 510-($-$$) db 0
+db 0x55, 0xaa
