@@ -4,8 +4,41 @@ SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0
 
 [bits 32]
 section .text
-; ------------ put char -----------
-; put 1 char from stack to screen positioned at cursor
+
+; ---------------------------
+; put str:
+;   put 1 string (end with '\0') from stack to screen positioned at cursor
+;   in: a string ended with '\0'
+; ---------------------------
+global put_str
+put_str:
+    push ebx
+    push ecx
+
+    xor ecx, ecx
+    mov ebx, [esp+12]
+
+.goon:
+    mov cl, [ebx]
+    cmp cl, 0
+    je .str_over
+    push ecx
+    call put_char
+    add esp, 4
+    inc ebx
+    jmp .goon
+
+.str_over:
+    pop ecx
+    pop ebx
+    ret
+
+; ---------------------------
+; put char:
+;   put 1 char from stack to screen positioned at cursor
+;   in: a single char
+; ---------------------------
+
 global put_char
 put_char:
     pushad
