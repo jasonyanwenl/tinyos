@@ -2,21 +2,21 @@
    section loader vstart=LOADER_BASE_ADDR
 ;构建gdt及其内部的描述符
    GDT_BASE:   dd    0x00000000 
-           dd    0x00000000
+               dd    0x00000000
 
    CODE_DESC:  dd    0x0000FFFF 
-           dd    DESC_CODE_HIGH4
+               dd    DESC_CODE_HIGH4
 
    DATA_STACK_DESC:  dd    0x0000FFFF
-             dd    DESC_DATA_HIGH4
+                     dd    DESC_DATA_HIGH4
 
    VIDEO_DESC: dd    0x80000007        ; limit=(0xbffff-0xb8000)/4k=0x7
-           dd    DESC_VIDEO_HIGH4  ; 此时dpl为0
+               dd    DESC_VIDEO_HIGH4  ; 此时dpl为0
 
    GDT_SIZE   equ   $ - GDT_BASE
    GDT_LIMIT   equ   GDT_SIZE - 1 
    times 60 dq 0                     ; 此处预留60个描述符的空位(slot)
-   SELECTOR_CODE equ (0x0001<<3) + TI_GDT + RPL0         ; 相当于(CODE_DESC - GDT_BASE)/8 + TI_GDT + RPL0
+   SELECTOR_CODE equ (0x0001<<3) + TI_GDT + RPL0     ; 相当于(CODE_DESC - GDT_BASE)/8 + TI_GDT + RPL0
    SELECTOR_DATA equ (0x0002<<3) + TI_GDT + RPL0     ; 同上
    SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0    ; 同上 
 
@@ -28,7 +28,7 @@
 
    ;以下是定义gdt的指针，前2字节是gdt界限，后4字节是gdt起始地址
    gdt_ptr  dw  GDT_LIMIT 
-        dd  GDT_BASE
+            dd  GDT_BASE
 
    ;人工对齐:total_mem_bytes4字节+gdt_ptr6字节+ards_buf244字节+ards_nr2,共256字节
    ards_buf times 244 db 0
@@ -159,8 +159,8 @@ p_mode_start:
 
    ;将gdt描述符中视频段描述符中的段基址+0xc0000000
    mov ebx, [gdt_ptr + 2]  
-   or dword [ebx + 0x18 + 4], 0xc0000000      ;视频段是第3个段描述符,每个描述符是8字节,故0x18。
-                          ;段描述符的高4字节的最高位是段基址的31~24位
+   or dword [ebx + 0x18 + 4], 0xc0000000        ;视频段是第3个段描述符,每个描述符是8字节,故0x18。
+                                                ;段描述符的高4字节的最高位是段基址的31~24位
 
    ;将gdt的基址加上0xc0000000使其成为内核所在的高地址
    add dword [gdt_ptr + 2], 0xc0000000
@@ -178,14 +178,6 @@ p_mode_start:
 
    ;在开启分页后,用gdt新的地址重新加载
    lgdt [gdt_ptr]             ; 重新加载
-
-   mov byte [gs:160], 'V'     ;视频段段基址已经被更新,用字符v表示virtual addr
-   mov byte [gs:162], 'i'     ;视频段段基址已经被更新,用字符v表示virtual addr
-   mov byte [gs:164], 'r'     ;视频段段基址已经被更新,用字符v表示virtual addr
-   mov byte [gs:166], 't'     ;视频段段基址已经被更新,用字符v表示virtual addr
-   mov byte [gs:168], 'u'     ;视频段段基址已经被更新,用字符v表示virtual addr
-   mov byte [gs:170], 'a'     ;视频段段基址已经被更新,用字符v表示virtual addr
-   mov byte [gs:172], 'l'     ;视频段段基址已经被更新,用字符v表示virtual addr
    
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;  此时不刷新流水线也没问题  ;;;;;;;;;;;;;;;;;;;;;;;;
 ;由于一直处在32位下,原则上不需要强制刷新,经过实际测试没有以下这两句也没问题.
@@ -193,22 +185,6 @@ p_mode_start:
    jmp SELECTOR_CODE:enter_kernel     ;强制刷新流水线,更新gdt
 enter_kernel:    
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-   mov byte [gs:320], 'k'     ;视频段段基址已经被更新
-   mov byte [gs:322], 'e'     ;视频段段基址已经被更新
-   mov byte [gs:324], 'r'     ;视频段段基址已经被更新
-   mov byte [gs:326], 'n'     ;视频段段基址已经被更新
-   mov byte [gs:328], 'e'     ;视频段段基址已经被更新
-   mov byte [gs:330], 'l'     ;视频段段基址已经被更新
-
-   mov byte [gs:480], 'w'     ;视频段段基址已经被更新
-   mov byte [gs:482], 'h'     ;视频段段基址已经被更新
-   mov byte [gs:484], 'i'     ;视频段段基址已经被更新
-   mov byte [gs:486], 'l'     ;视频段段基址已经被更新
-   mov byte [gs:488], 'e'     ;视频段段基址已经被更新
-   mov byte [gs:490], '('     ;视频段段基址已经被更新
-   mov byte [gs:492], '1'     ;视频段段基址已经被更新
-   mov byte [gs:494], ')'     ;视频段段基址已经被更新
-   mov byte [gs:496], ';'     ;视频段段基址已经被更新
    call kernel_init
    mov esp, 0xc009f000
    jmp KERNEL_ENTRY_POINT                 ; 用地址0x1500访问测试，结果ok
