@@ -19,7 +19,7 @@ void memcpy(void *dst_, const void *src_, uint32_t size) {
     }
 }
 
-void memcmp(const void *a_, const void *b_, uint32_t size) {
+int memcmp(const void *a_, const void *b_, uint32_t size) {
     ASSERT(a_ != NULL && b_ != NULL);
     const char *a = a_;
     const char *b = b_;
@@ -72,11 +72,11 @@ char *strrchr(const char *str, const uint8_t ch) {
     const char *last_char = NULL;
     while (*str != 0) {
         if (*str == ch) {
-            last_char = ch;
+            last_char = str;
         }
         str++;
     }
-    return last_char;
+    return (char *)last_char;
 }
 
 char *strcat(char *dst_, const char *src_) {
