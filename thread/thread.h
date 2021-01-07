@@ -6,6 +6,7 @@
 #include "memory.h"
 #include "list.h"
 #include "debug.h"
+#include "bitmap.h"
 
 typedef void thread_func(void *);
 
@@ -65,8 +66,12 @@ struct task_struct {
     struct list_elem general_tag;
     struct list_elem all_list_tag;
     uint32_t *pgdir;
+    struct virtual_addr userprog_vaddr;
     uint32_t stack_magic;
 };
+
+extern struct list thread_ready_list;
+extern struct list thread_all_list;
 
 void thread_create(struct task_struct *pthread, thread_func function, void *func_arg);
 void init_thread(struct task_struct *pthread, char *name, int prio);
