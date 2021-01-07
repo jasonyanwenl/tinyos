@@ -81,7 +81,6 @@ static void page_table_add(void *_vaddr, void *_page_phyaddr) {
             *pte = (page_phyaddr | PG_US_U | PG_RW_W | PG_P_1);
         } else {
             PANIC("pte repeat");
-            *pte = (page_phyaddr | PG_US_U | PG_RW_W | PG_P_1);
         }
     } else {
         uint32_t pde_phyaddr = (uint32_t)palloc(&kernel_pool);
@@ -137,7 +136,7 @@ void *get_user_pages(uint32_t pg_cnt) {
 }
 
 void* get_a_page(enum pool_flags pf, uint32_t vaddr) {
-    struct pool *mem_pool = pf * PF_KERNEL ? &kernel_pool : &user_pool;
+    struct pool *mem_pool = pf & PF_KERNEL ? &kernel_pool : &user_pool;
     lock_acquire(&mem_pool->lock);
 
     struct task_struct *cur = running_thread();

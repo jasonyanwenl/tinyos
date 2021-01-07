@@ -6,6 +6,7 @@
 #include "global.h"
 #include "debug.h"
 #include "tss.h"
+#include "console.h"
 
 extern void intr_exit(void);
 
@@ -73,6 +74,9 @@ void create_user_vaddr_bitmap(struct task_struct *user_prog) {
 void process_execute(void *filename, char *name) {
     struct task_struct *thread = get_kernel_pages(1);
     init_thread(thread, name, default_prio);
+    console_put_str("process pid: 0x");
+    console_put_int(thread->pid);
+    console_put_char('\n');
     create_user_vaddr_bitmap(thread);
     thread_create(thread, start_process, filename);
     thread->pgdir = create_page_dir();
