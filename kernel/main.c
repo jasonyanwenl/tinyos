@@ -7,6 +7,7 @@
 #include "process.h"
 #include "syscall.h"
 #include "syscall-init.h"
+#include "stdio.h"
 
 void k_thread_a(void*);
 void k_thread_b(void*);
@@ -37,9 +38,6 @@ void k_thread_a(void *arg) {
     console_put_str(" thread_a_pid:0x");
     console_put_int(sys_getpid());
     console_put_char('\n');
-    console_put_str(" prog_a_pid:0x");
-    console_put_int(prog_a_pid);
-    console_put_char('\n');
     while(1);
 }
 
@@ -48,18 +46,15 @@ void k_thread_b(void *arg) {
     console_put_str(" thread_b_pid:0x");
     console_put_int(sys_getpid());
     console_put_char('\n');
-    console_put_str(" prog_b_pid:0x");
-    console_put_int(prog_b_pid);
-    console_put_char('\n');
     while(1);
 }
 
 void u_prog_a(void) {
-    prog_a_pid = getpid();
-    while(1);
+   printf(" prog_a_pid:0x%x\n", getpid());
+   while(1);
 }
 
 void u_prog_b(void) {
-    prog_b_pid = getpid();
-    while(1);
+   printf(" prog_b_pid:0x%x\n", getpid());
+   while(1);
 }
