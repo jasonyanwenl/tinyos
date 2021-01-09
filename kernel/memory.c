@@ -1,6 +1,7 @@
 #include "memory.h"
 #include "thread.h"
 #include "sync.h"
+#include "string.h"
 
 
 #define PG_SIZE 4096
@@ -16,8 +17,30 @@ struct pool {
     struct lock lock;
 };
 
+struct arena {
+    struct mem_block_desc *desc;
+    uint32_t cnt;
+    bool large;
+};
+
+struct mem_block_desc k_block_descs[DESC_CNT];
+
 struct pool kernel_pool, user_pool;
 struct virtual_addr kernel_vaddr;
+
+void block_desc_init(struct mem_block_desc* desc_array) {
+    uint16_t desc_idx, block_size = 16;
+    for (desc_idx = 0; desc_idx < DESC_CNT; desc_idx++) {
+        desc_array[desc_idx].block_size = block_size;
+
+        desc_array[desc_idx].blocks_per_arena = \
+            (PG_SIZE - sizeof(struct arena)) / block_size;
+
+        list_init(&desc_array[desc_idx].free_list);
+
+        block_size *= 2;
+    }
+}
 
 static void *vaddr_get(enum pool_flags pf, uint32_t pg_cnt) {
     int vaddr_start = 0, bit_idx_start = -1;
@@ -235,9 +258,107 @@ static void mem_pool_init(uint32_t all_mem) {
     put_str("   mem_pool_init done\n");
 }
 
+static struct mem_block *arena2block(struct arena *a, uint32_t idx) {
+    return (struct mem_block *)((uint32_t)a + sizeof(struct arena) + idx * a->desc->block_size);
+}
+
+static struct arena *block2arena(struct mem_block *b) {
+    return (struct arena *)((uint32_t)b & 0xfffff000);
+}
+
+void *sys_malloc(uint32_t size) {
+    enum pool_flags PF;
+    struct pool *mem_pool;
+    uint32_t pool_size;
+    struct mem_block_desc *descs;
+    struct task_struct *cur_thread = running_thread();
+
+    if (cur_thread->pgdir == NULL) {
+        // kernel thread
+        PF = PF_KERNEL;
+        pool_size = kernel_pool.pool_size;
+        mem_pool = &kernel_pool;
+        descs = k_block_descs;
+    } else {
+        // user process
+        PF = PF_USER;
+        pool_size = user_pool.pool_size;
+        mem_pool = &user_pool;
+        descs = cur_thread->u_block_desc;
+    }
+
+    if (!(size > 0 && size < pool_size)) {
+        return NULL;
+    }
+    struct arena *a;
+    struct mem_block *b;
+    lock_acquire(&mem_pool->lock);
+
+    if (size > 1024) {
+        uint32_t page_cnt = DIV_ROUND_UP(size + sizeof(struct arena), PG_SIZE);
+
+        a = malloc_page(PF, page_cnt);
+
+        if (a != NULL) {
+            memset(a, 0, page_cnt * PG_SIZE);
+
+            a->desc = NULL;
+            a->cnt = page_cnt;
+            a->large = true;
+            lock_release(&mem_pool->lock);
+            return (void *)(a + 1);
+        } else {
+            lock_release(&mem_pool->lock);
+            return NULL;
+        }
+    } else {
+        uint8_t desc_idx;
+
+        // find fitable arena group
+        for (desc_idx = 0; desc_idx < DESC_CNT; desc_idx++) {
+            if (size <= descs[desc_idx].block_size) {
+                break;
+            }
+        }
+
+        if (list_empty(&descs[desc_idx].free_list)) {
+            // No available free block, allocate new page
+            a = malloc_page(PF, 1);
+            if (a == NULL) {
+                lock_release(&mem_pool->lock);
+                return NULL;
+            }
+            memset(a, 0, PG_SIZE);
+
+            a->desc = &descs[desc_idx];
+            a->large = false;
+            a->cnt = descs[desc_idx].blocks_per_arena;
+            uint32_t block_idx;
+
+            enum intr_status old_status = intr_disable();
+
+            for (block_idx = 0; block_idx < descs[desc_idx].blocks_per_arena; block_idx++) {
+                b = arena2block(a, block_idx);
+                ASSERT(!elem_find(&a->desc->free_list, &b->free_elem));
+                list_append(&a->desc->free_list, &b->free_elem);
+            }
+            intr_set_status(old_status);
+        }
+
+        b = elem2entry(struct mem_block, free_elem, list_pop(&(descs[desc_idx].free_list)));
+        memset(b, 0, descs[desc_idx].block_size);
+
+        a = block2arena(b);
+        a->cnt--;
+        lock_release(&mem_pool->lock);
+        return (void *)b;
+    }
+}
+
 void mem_init() {
     put_str("mem_init start\n");
     uint32_t mem_bytes_total = (*(uint32_t *)(0xb00));
     mem_pool_init(mem_bytes_total);
+    block_desc_init(k_block_descs);
     put_str("mem_init done\n");
 }
