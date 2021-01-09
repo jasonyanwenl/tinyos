@@ -49,8 +49,8 @@ static void pic_init(void) {
     outb(PIC_S_DATA, 0x02);	// ICW3: 设置从片连接到主片的IR2引脚
     outb(PIC_S_DATA, 0x01);	// ICW4: 8086模式, 正常EOI
 
-    outb(PIC_M_DATA, 0xfc);
-    outb(PIC_S_DATA, 0xff);
+    outb(PIC_M_DATA, 0xf8);
+    outb(PIC_S_DATA, 0xbf);
 
     put_str("   pic_init done\n");
 }
