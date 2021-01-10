@@ -14,7 +14,7 @@ struct partition {
     char name[8];
     struct super_block *sb;
     struct bitmap block_bitmap;
-    struct bitmap innode_bitmap;
+    struct bitmap inode_bitmap;
     struct list open_inodes;
 };
 
